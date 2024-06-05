@@ -1,0 +1,2457 @@
+# -*- coding: utf-8 -*-
+
+import os as os
+os.getcwd()
+
+# =============================================================================
+# Pre-processing
+# =============================================================================
+
+#### 1. Load Data
+
+import pyreadstat
+import numpy as np
+import pandas as pd
+timss, meta = pyreadstat.read_sav('timss_whole.sav')
+# timss = timss.replace(r'^\s*$', np.nan, regex=True)
+type(timss)
+timss.head()
+
+#### 2. participants
+timss['ITCOURSE'].value_counts().to_dict()
+integrate = timss[timss['ITCOURSE'].eq(6)]
+integrate['ITCOURSE'].describe()
+separate = timss[timss['ITCOURSE'].isin([2, 3, 4, 5])]
+separate['ITCOURSE'].value_counts().to_dict()
+
+#### 3. Select Variables
+### for integrated
+## Students like learning science
+int_likescience = ["BSBGSLS"]
+## Students feel confident about science
+int_confident = ["BSBGSCS"]
+## instructional clarity
+int_clarity = ['BSBGICS']
+## Experiments
+int_experiments_frequency = ["BSBS21"] # BSBS21-infrequency; BSBS22H-like
+int_experiments_like = ["BSBS22H"]
+
+
+### for separate science(biology, chemistry, earth scienc, physics)
+## Students like learning separate
+sep_likescience = ["BSBGSLB", "BSBGSLE", "BSBGSLC", "BSBGSLP"]
+## Students feel confident about separate
+sep_confident = ["BSBGSCB", "BSBGSCE", "BSBGSCC", "BSBGSCP"]
+## instructional clarity
+sep_clarity = ['BSBGICB', 'BSBGICE', 'BSBGICC', 'BSBGICP']
+
+## Experiments
+sep_experiments_frequency = ["BSBB22", "BSBE27", "BSBC32", "BSBP37"]
+sep_experiments_like = ["BSBB23H", "BSBE28H", "BSBC33H", "BSBP38H"]
+
+### for separate and integrated
+## time spent on instruction
+'''
+BTBS14: from teachers
+BCBG06B: from principals
+BTBG09D: need more time to prepare
+BTBG09E: need more time to assist
+'''
+time = ["BTBS14", "BCBG06B", "BTBG09D", "BTBG09E"]
+
+## science instruction strategies
+'''
+BTBG12A: relate the lesson to students' daily lives
+BTBG12B: ask students to explain their answers
+BTBG12C: ask students to complete challenging exercies
+BTBG12D: encourage classroom discussions
+BTBG12E: link to students' prior knowledge
+BTBG12F: ask students to decide problem solving procedures
+BTBG12G: encourage students to express ideas
+BTBSESI: teachers emphasis science investigation
+'''
+strategies = ['BTBG12A', "BTBG12B", 'BTBG12C', 'BTBG12D',
+                      'BTBG12E', 'BTBG12F', 'BTBG12G', 'BTBSESI']
+## gender
+gender = ["ITSEX"]
+
+
+## Homework
+homework_freq = ["BTBS18A"]
+homework_time = ["BTBS18B"]
+homework_feedback = ["BTBS18CA", "BTBS18CB", "BTBS18CC", "BTBS18CD", "BTBS18CE"]
+
+## SES(student)
+ses = ["BSBGHER"]
+
+## country id
+country_id = ["IDCNTRY"]
+
+## teacher weight
+weight = ['SCIWGT']
+## science achievements
+
+def paste0(string1, range1): 
+     texts = [string1 + str(num1) for num1 in range1]
+     return texts
+
+sci_pv = paste0("BSSSCI0", range(1,6)) ## Science pv
+sci_applying_pv = paste0("BSSAPP0", range(1,6)) ## science applying
+sci_knowing_pv = paste0("BSSKNO0", range(1,6)) ## science knowing
+sci_reasoning_pv = paste0("BSSREA0", range(1,6)) ## science reasoning
+bio_pv = paste0("BSSBIO0", range(1,6)) ## Biology pv
+che_pv = paste0("BSSCHE0", range(1,6)) ## Chemistry pv
+ear_pv = paste0("BSSEAR0", range(1,6)) ## Earth science pv
+phy_pv = paste0("BSSPHY0", range(1,6)) ## Physics pv
+
+int_col_names = weight + country_id + gender + int_likescience + int_confident + int_clarity + int_experiments_frequency + int_experiments_like + time + strategies + homework_freq + ses + homework_time + homework_feedback + sci_pv
+integrated = integrate.loc[:, int_col_names]
+integrated.head()
+sep_col_names = weight + country_id + gender + sep_likescience + sep_confident + sep_clarity + sep_experiments_frequency + sep_experiments_like + time + strategies + homework_freq + ses + homework_time + homework_feedback + sci_pv
+separated = separate.loc[:, sep_col_names]
+separated.head()
+
+#### 4. rename
+integrated.columns = ['weight', 'country', 'gender', 'like', 'confident',
+                      'clarity', 'experiments_freq', 'experiments_like', 
+                      'instru_time_fromteacher', 'instru_time_fromprincipal',
+                      'more_time_prepare', 'more_time_assist', 'daily_lives',
+                      'explain', 'challenging_exercies', 'class_discussion', 'prior_knowledge',
+                      'problem_solving', 'express_ideas', 'emphasis_investigation',
+                      'homework_freq', 'ses', 'homework_time', 'teacher_correct', 
+                      'student_correct', 'discuss', 'monitor', 'use_for_grades',
+                      'sci_pv1', 'sci_pv2', 'sci_pv3', 'sci_pv4', 'sci_pv5']
+separated.columns = ['weight', 'country', 'gender', "like_bio", "like_ear", "like_che", "like_phy", 
+                     "confi_bio", "confi_ear", "confi_che", "confi_phy",
+                      'clarity_bio', 'clarity_ear', 'clarity_che', 'clarity_phy', 
+                      "exp_freq_bio", "exp_freq_ear", "exp_freq_che", "exp_freq_phy", 
+                      "exp_like_bio", "exp_like_ear", "exp_like_che", "exp_like_phy", 
+                      'instru_time_fromteacher', 'instru_time_fromprincipal',
+                      'more_time_prepare', 'more_time_assist', 'daily_lives',
+                      'explain', 'challenging_exercies', 'class_discussion', 'prior_knowledge',
+                      'problem_solving', 'express_ideas', 'emphasis_investigation',
+                      'homework_freq', 'ses', 'homework_time', 'teacher_correct', 
+                      'student_correct', 'discuss', 'monitor', 'use_for_grades',
+                      'sci_pv1', 'sci_pv2', 'sci_pv3', 'sci_pv4', 'sci_pv5']
+
+#### 5. prepare data
+integrated['type'] = 'integrated'
+separated['type'] = 'separate'
+
+integrated.head()
+
+#### 6. clean data
+## find duplicate values
+duplicates_int = integrated.duplicated()
+sum(duplicates_int)
+integrated = integrated.drop_duplicates(keep = 'first')
+# temp_int.to_csv("temp_int.csv", index = False)
+duplicates_int = integrated.duplicated()
+sum(duplicates_int)
+
+duplicates_sep = separated.duplicated()
+sum(duplicates_sep)
+## Those duplicated rows are about the same student with different IDLINK values
+## IDLINK: Thus, students linked to teachers identified by the same IDTEACH but different
+## IDLINK are taught by the same teacher but in dcifferent classes.
+
+separated = separated.drop_duplicates(keep = 'first')
+duplicates_sep = separated.duplicated()
+sum(duplicates_sep)
+
+
+
+## missing data
+# check missing types
+import missingno as msno
+msno.bar(integrated)
+msno.bar(separated)
+msno.matrix(integrated)
+msno.matrix(separated)
+msno.heatmap(integrated)
+msno.heatmap(separated)
+msno.dendrogram(integrated)
+msno.dendrogram(separated)
+
+import matplotlib.pyplot as plt
+msno.matrix(integrated)
+plt.savefig('integrated_missing_matrix.png', dpi=1200, bbox_inches='tight')
+plt.close()
+
+
+msno.matrix(separated)
+plt.savefig('separated_missing_matrix.png', dpi=1200, bbox_inches='tight')
+plt.close()
+
+separated_sorted = separated.sort_values('like_ear')
+msno.matrix(separated_sorted)
+
+# Missing not at random(MNAR)
+# separated: like_ear, confi_ear, clarity_ear, exp_freq_ear, exp_like_ear
+separated.country[separated.like_ear.isna()].value_counts() / len(separated) * 100
+separated.country.value_counts() / len(separated) * 100
+## delete countries: 422, 752
+separated = separated[~separated.country.isin([422, 752])]
+separated.country.value_counts()
+
+# step1: delete
+integrated_nullity = integrated.isnull()
+integrated_nullity.sum()
+integrated_nullity.mean() * 100
+# delete rows with missing values less than 5%
+integrated = integrated.dropna(subset = ['gender', 'like', 'confident', 'clarity', 'experiments_freq', 'experiments_like', 'ses'],
+                               how = 'any')
+
+separated_nullity = separated.isnull()
+separated_nullity.mean() * 100
+# delete rows with missing values less than 5%
+separated = separated.dropna(subset = ['gender', 'like_bio', 'like_che', 'like_phy', 'confi_bio', 'clarity_bio', 'clarity_che',
+                                       'clarity_phy', 'exp_freq_bio', 'exp_like_bio', 'more_time_prepare', 'more_time_assist',
+                                       'daily_lives', 'explain', 'challenging_exercies', 'class_discussion', 'prior_knowledge',
+                                       'problem_solving', 'express_ideas', 'emphasis_investigation', 'ses'],
+                             how = 'any')
+
+# step2: imputation
+# for numeric features
+int_numeric = ['like', 'confident', 'clarity', 'instru_time_fromteacher', 
+               'instru_time_fromprincipal','emphasis_investigation', 'ses']
+int_categorical = ['experiments_freq', 'experiments_like','more_time_prepare', 
+                   'more_time_assist', 'daily_lives', 'explain', 'challenging_exercies', 
+                   'class_discussion', 'prior_knowledge', 'problem_solving', 'express_ideas', 
+                   'homework_freq', 'homework_time', 'teacher_correct', 
+                  'student_correct', 'discuss', 'monitor', 'use_for_grades']
+int_numeric_imputation = integrated[int_numeric].copy(deep = True)
+int_categorical_imputation = integrated[int_categorical].copy(deep = True)
+# int_numeric_imputation.to_csv("int_numeric_imputation.csv", index = False)
+# int_categorical_imputation.to_csv("int_categorical_imputation.csv", index = False)
+
+sep_numeric = ["like_bio", "like_ear", "like_che", "like_phy", 
+               "confi_bio", "confi_ear", "confi_che", "confi_phy", 
+               'clarity_bio', 'clarity_ear', 'clarity_che', 'clarity_phy', 
+               'instru_time_fromteacher', 'instru_time_fromprincipal','emphasis_investigation', 'ses']
+sep_categorical = ["exp_freq_bio", "exp_freq_ear", "exp_freq_che", "exp_freq_phy",
+                   "exp_like_bio", "exp_like_ear", "exp_like_che", "exp_like_phy", 
+                   'more_time_prepare', 'more_time_assist', 'daily_lives','explain', 
+                   'challenging_exercies', 'class_discussion', 'prior_knowledge',
+                   'problem_solving', 'express_ideas', 'homework_freq', 'homework_time', 
+                   'teacher_correct', 'student_correct', 'discuss', 'monitor', 'use_for_grades']
+sep_numeric_imputation = separated[sep_numeric].copy(deep = True)
+sep_categorical_imputation = separated[sep_categorical].copy(deep = True)
+# sep_numeric_imputation.to_csv("sep_numeric_imputation.csv", index = False)
+# sep_categorical_imputation.to_csv("sep_categorical_imputation.csv", index = False)
+
+
+from sklearn.impute import KNNImputer
+knn_imputer = KNNImputer(n_neighbors=5)
+   
+
+int_numeric_imputation.iloc[:, :] = knn_imputer.fit_transform(int_numeric_imputation)
+int_categorical_imputation.iloc[:, :] = np.round(knn_imputer.fit_transform(int_categorical_imputation))
+
+sep_numeric_imputation.iloc[:, :] = knn_imputer.fit_transform(sep_numeric_imputation)
+sep_categorical_imputation.iloc[:, :] = np.round(knn_imputer.fit_transform(sep_categorical_imputation))
+
+integrated.columns.tolist()
+int_demographic = ['weight', 'country', 'gender', 'sci_pv1', 'sci_pv2', 'sci_pv3', 
+                   'sci_pv4', 'sci_pv5', 'type']
+int_numeric_imputation = pd.concat([integrated[int_demographic].reset_index(drop=True), int_numeric_knn.reset_index(drop=True)], axis = 1)
+int_imputation = pd.concat([int_numeric_imputation.reset_index(drop=True), int_categorical_knn.reset_index(drop=True)], axis = 1)
+int_imputation.head()
+
+sep_demographic = ['weight', 'country', 'gender', 'sci_pv1', 'sci_pv2', 'sci_pv3', 
+                   'sci_pv4', 'sci_pv5', 'type']
+sep_numeric_imputation = pd.concat([separated[int_demographic].reset_index(drop=True), sep_numeric_knn.reset_index(drop=True)], axis = 1)
+sep_imputation = pd.concat([sep_numeric_imputation.reset_index(drop=True), sep_categorical_knn.reset_index(drop=True)], axis = 1)
+sep_imputation.head()
+
+sep_imputation['like'] = sep_imputation[["like_bio", "like_ear", "like_che", "like_phy"]].mean(axis=1)
+sep_imputation['confident'] = sep_imputation[["confi_bio", "confi_ear", "confi_che", "confi_phy"]].mean(axis=1)
+sep_imputation['clarity'] = sep_imputation[['clarity_bio', 'clarity_ear', 'clarity_che', 'clarity_phy']].mean(axis=1)
+sep_imputation['experiments_freq'] = np.round(sep_imputation[["exp_freq_bio", "exp_freq_ear", "exp_freq_che", "exp_freq_phy"]].mean(axis=1))
+sep_imputation['experiments_like'] = np.round(sep_imputation[["exp_like_bio", "exp_like_ear", "exp_like_che", "exp_like_phy"]].mean(axis=1))
+sep_drop = ["like_bio", "like_ear", "like_che", "like_phy",
+            "confi_bio", "confi_ear", "confi_che", "confi_phy",
+            'clarity_bio', 'clarity_ear', 'clarity_che', 'clarity_phy',
+            "exp_freq_bio", "exp_freq_ear", "exp_freq_che", "exp_freq_phy",
+            "exp_like_bio", "exp_like_ear", "exp_like_che", "exp_like_phy"]
+sep_imputation = sep_imputation.drop(sep_drop, axis=1)
+df = pd.concat([int_imputation.reset_index(drop=True), sep_imputation.reset_index(drop=True)], ignore_index=True, sort=True)
+
+
+## dummy coding
+type_dummies = pd.get_dummies(df['type'], drop_first = True)
+# 0: integrated
+df = pd.concat([df.reset_index(drop=True), type_dummies.reset_index(drop=True)], axis=1)
+df = df.drop("type", axis=1)
+print(df.columns)
+df['type_dummies'] = df['separate'].astype('float64')
+df = df.drop("separate", axis=1)
+df.info()
+## centering and scaling
+print(df.describe())
+df.columns
+df[['challenging_exercies', 'clarity', 'class_discussion']].describe()
+df[['instru_time_fromprincipal', 'instru_time_fromteacher']].describe()
+
+# df.to_csv("timss_data.csv", index = False)
+
+# df = pd.read_csv("./timss_data.csv")
+
+from sklearn.preprocessing import StandardScaler
+X = df.drop(["sci_pv1", "sci_pv2", "sci_pv3", "sci_pv4", "sci_pv5"], axis = 1).values
+X_noweight = df.drop(["sci_pv1", "sci_pv2", "sci_pv3", "sci_pv4", "sci_pv5", 'weight'], axis = 1).values
+names = df.drop(["sci_pv1", "sci_pv2", "sci_pv3", "sci_pv4", "sci_pv5", 'weight'], axis = 1).columns
+
+y1 = df['sci_pv1'].values
+y2 = df['sci_pv2'].values
+y3 = df['sci_pv3'].values
+y4 = df['sci_pv4'].values
+y5 = df['sci_pv5'].values
+
+from sklearn.model_selection import train_test_split
+X_train1, X_test1, y_train1, y_test1 = train_test_split(X, y1, test_size = 0.3, random_state = 42)
+X_train_weight1 = X_train1[:, 27]
+X_train1 = np.delete(X_train1, 27, 1)
+
+X_test_weight1 = X_test1[:, 27]
+X_test1 = np.delete(X_test1, 27, 1)
+
+
+scaler = StandardScaler()
+X_train_scaled1 = scaler.fit_transform(X_train1)
+X_test_scaled1 = scaler.fit_transform(X_test1)
+
+
+X_train2, X_test2, y_train2, y_test2 = train_test_split(X, y2, test_size = 0.3, random_state = 42)
+X_train_weight2 = X_train2[:, 27]
+X_train2 = np.delete(X_train2, 27, 1)
+
+X_test_weight2 = X_test2[:, 27]
+X_test2 = np.delete(X_test2, 27, 1)
+
+X_train_scaled2 = scaler.fit_transform(X_train2)
+X_test_scaled2 = scaler.fit_transform(X_test2)
+
+
+X_train3, X_test3, y_train3, y_test3 = train_test_split(X, y3, test_size = 0.3, random_state = 42)
+X_train_weight3 = X_train3[:, 27]
+X_train3 = np.delete(X_train3, 27, 1)
+
+X_test_weight3 = X_test3[:, 27]
+X_test3 = np.delete(X_test3, 27, 1)
+
+X_train_scaled3 = scaler.fit_transform(X_train3)
+X_test_scaled3 = scaler.fit_transform(X_test3)
+
+X_train4, X_test4, y_train4, y_test4 = train_test_split(X, y4, test_size = 0.3, random_state = 42)
+X_train_weight4 = X_train4[:, 27]
+X_train4 = np.delete(X_train4, 27, 1)
+
+X_test_weight4 = X_test4[:, 27]
+X_test4 = np.delete(X_test4, 27, 1)
+
+X_train_scaled4 = scaler.fit_transform(X_train4)
+X_test_scaled4 = scaler.fit_transform(X_test4)
+
+X_train5, X_test5, y_train5, y_test5 = train_test_split(X, y5, test_size = 0.3, random_state = 42)
+X_train_weight5 = X_train5[:, 27]
+X_train5 = np.delete(X_train5, 27, 1)
+
+X_test_weight5 = X_test5[:, 27]
+X_test5 = np.delete(X_test5, 27, 1)
+
+X_train_scaled5 = scaler.fit_transform(X_train5)
+X_test_scaled5 = scaler.fit_transform(X_test5)
+
+
+
+
+
+
+
+###################### data exploration
+from scipy.stats import mannwhitneyu
+
+grouped_data = df.groupby('type_dummies')
+
+other_columns = ['challenging_exercies', 'clarity', 'class_discussion', 'confident',
+        'daily_lives', 'discuss', 'emphasis_investigation',
+       'experiments_freq', 'experiments_like', 'explain', 'express_ideas',
+       'gender', 'homework_freq', 'homework_time', 'instru_time_fromprincipal',
+       'instru_time_fromteacher', 'like', 'monitor', 'more_time_assist',
+       'more_time_prepare', 'prior_knowledge', 'problem_solving',
+       'sci_pv1','sci_pv2', 'sci_pv3', 'sci_pv4', 'sci_pv5', 'ses', 'student_correct', 'teacher_correct',
+       'use_for_grades']
+# Perform the Mann-Whitney U test for each pair of columns
+for col in other_columns:
+    for group_name, group_data in grouped_data:
+        group_values = group_data[col].values
+        print(f"Group: {group_name}, Column: {col}")
+        for other_group_name, other_group_data in grouped_data:
+            if group_name != other_group_name:
+                other_group_values = other_group_data[col].values
+                stat, p_value = mannwhitneyu(group_values, other_group_values)
+                print(f"    Compared to Group: {other_group_name}, p-value: {p_value}")
+        print()
+        
+medians = grouped_data[other_columns].median()
+# medians.to_csv("medians.csv", index = True)
+mean = grouped_data[other_columns].mean()
+# mean.to_csv("mean.csv", index = True)
+
+results = {}
+
+for column in other_columns:
+    groups = []
+    for group, group_data in grouped_data:
+        groups.append(group_data[column].values)
+    
+    # Perform the Mann-Whitney U test
+    statistic, p_value = mannwhitneyu(*groups)
+    
+    # Calculate effect size (e.g., Cohen's d)
+    n1 = len(groups[0])
+    n2 = len(groups[1])
+    u1 = n1 * n2 / 2
+    u2 = n1 * n2 + (n1 * (n1 + 1)) / 2 - u1
+    effect_size = (u1 - u2) / (n1 * n2)
+    
+    results[column] = {'Statistic': statistic, 'p-value': p_value, 'Effect Size': effect_size}
+
+
+results_df = pd.DataFrame(results)
+# results_df.to_csv("results_df.csv", index = False)
+print(results_df)
+
+
+#c = df.groupby('type_dummies').mean()
+#c.to_csv("c.csv", index = True)
+import researchpy as rp
+des_numeric = rp.summary_cont(df[int_numeric])
+des_numeric.to_csv("des_numeric.csv", index = False)
+
+des_cate = rp.summary_cat(df[int_categorical])
+des_cate.to_csv("des_cate.csv", index = False)
+
+import seaborn as sns
+
+Var_Corr = grouped_data[other_columns].corr()
+# plot the heatmap and annotation on it
+sns.heatmap(Var_Corr, xticklabels=Var_Corr.columns, yticklabels=Var_Corr.columns, annot=False)
+
+
+cmap=sns.diverging_palette(5, 250, as_cmap=True)
+
+def magnify():
+    return [dict(selector="th",
+                 props=[("font-size", "10pt")]),
+            dict(selector="td",
+                 props=[('padding', "0em 0em")]),
+            dict(selector="th:hover",
+                 props=[("font-size", "12pt")]),
+            dict(selector="tr:hover td:hover",
+                 props=[('max-width', '40px'),
+                        ('font-size', '12pt')])]
+
+a = Var_Corr.style.background_gradient(cmap, axis=0)\
+    .set_properties(**{'max-width': '40px', 'font-size': '12pt'})\
+    .set_caption("Correlation")\
+    .format(precision = 2)\
+    .set_table_styles(magnify())
+
+    
+b = a.to_html()
+with open('file.html', 'w') as file:
+    file.write(b)
+
+
+# =============================================================================
+# PSM
+# =============================================================================
+
+
+import pandas as pd
+df = pd.read_csv("./timss_data.csv")
+
+
+RANDOM_SEED = 42
+
+from sklearn.preprocessing import StandardScaler
+X = df.drop(["sci_pv1", "sci_pv2", "sci_pv3", "sci_pv4", "sci_pv5"], axis = 1).values
+X_noweight = df.drop(["sci_pv1", "sci_pv2", "sci_pv3", "sci_pv4", "sci_pv5", 'weight', 'type_dummies'], axis = 1).values
+names = df.drop(["sci_pv1", "sci_pv2", "sci_pv3", "sci_pv4", "sci_pv5", 'weight'], axis = 1).columns
+
+y = df['type_dummies'].values
+
+
+
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(X_noweight, y, test_size = 0.3, random_state = 42)
+
+from sklearn.preprocessing import MinMaxScaler
+scaler =MinMaxScaler()
+X_train_scaled = X_train
+X_test_scaled = X_test
+X_train_scaled = scaler.fit_transform(X_train_scaled)
+X_test_scaled = scaler.fit_transform(X_test_scaled)
+X_noweight_scaled = scaler.fit_transform(X_noweight)
+
+from sklearn import model_selection
+from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.naive_bayes import GaussianNB 
+from sklearn.ensemble import RandomForestClassifier
+from mlxtend.classifier import StackingCVClassifier
+from sklearn.model_selection import GridSearchCV
+import numpy as np
+
+
+
+
+RANDOM_SEED = 42
+
+clf1 = KNeighborsClassifier()
+clf2 = RandomForestClassifier(random_state=RANDOM_SEED)
+clf3 = GaussianNB()
+lr = LogisticRegression()
+
+sclf = StackingCVClassifier(classifiers=[clf1, clf2, clf3], 
+                            meta_classifier=lr,
+                            use_probas=True,
+                            random_state=42)
+
+params = {'kneighborsclassifier__n_neighbors': [1, 5],
+          'randomforestclassifier__n_estimators': [10, 50, 100],
+          'meta_classifier__C': [0.1, 10.0]}
+
+grid = GridSearchCV(estimator=sclf, 
+                    param_grid=params, 
+                    cv=10,
+                    refit=True)
+
+grid.fit(X_train_scaled, y_train)
+
+cv_keys = ('mean_test_score', 'std_test_score', 'params')
+
+for r, _ in enumerate(grid.cv_results_['mean_test_score']):
+    print("%0.3f +/- %0.2f %r"
+          % (grid.cv_results_[cv_keys[0]][r],
+             grid.cv_results_[cv_keys[1]][r] / 2.0,
+             grid.cv_results_[cv_keys[2]][r]))
+
+print('Best parameters: %s' % grid.best_params_)
+print('Accuracy: %.2f' % grid.best_score_)
+
+y_score = grid.predict_proba(X_test_scaled)
+y_score = pd.DataFrame(y_score)
+y_score.to_csv("y_score.csv", index = False)
+all_score = grid.predict_proba(X_noweight_scaled)
+all_score = pd.DataFrame(all_score)
+all_score.to_csv("all_score.csv", index = False)
+
+predictions = pd.read_csv('all_score.csv')
+
+y_score = pd.read_csv("./y_score.csv")
+from sklearn import metrics
+metrics.confusion_matrix(y_test, np.round(y_score.iloc[:, 1]))
+metrics.accuracy_score(y_test, np.round(y_score.iloc[:, 1]))
+
+import math
+def logit(p):
+    logit_value = math.log(p / (1-p))
+    return logit_value
+
+predictions_logit = np.array([logit(xi) for xi in predictions.iloc[:,1]])
+
+
+
+
+X_noweight = df.drop(["sci_pv1", "sci_pv2", "sci_pv3", "sci_pv4", "sci_pv5", 'weight', 'type_dummies'], axis = 1)
+X_noweight.loc[:,'propensity_score'] = predictions.iloc[:,1]
+X_noweight.loc[:,'propensity_score_logit'] = predictions_logit
+X_noweight.loc[:,'treatment'] = y
+X_noweight.loc[:,'outcome'] = df.sci_pv1
+
+## Matching Implementation
+caliper = np.std(X_noweight.propensity_score) * 0.25
+
+print('\nCaliper (radius) is: {:.4f}\n'.format(caliper))
+
+df_data = X_noweight
+
+from sklearn.neighbors import NearestNeighbors
+knn = NearestNeighbors(n_neighbors=10 , p = 2, radius=caliper)
+knn.fit(df_data[['propensity_score_logit']].to_numpy())
+
+# Common support distances and indexes
+distances , indexes = knn.kneighbors(
+    df_data[['propensity_score_logit']].to_numpy(), \
+    n_neighbors=10)
+
+print('For item 0, the 4 closest indexes are (first item is self):')
+for idx in indexes[0,0:4]:
+    print('Element index: {}'.format(idx))
+print('...')
+
+df_data['treatment'] = df_data['treatment'].astype(int)
+
+def perfom_matching_v2(row, indexes, df_data):
+    current_index = int(row['index']) # Obtain value from index-named column, not the actual DF index.
+    prop_score_logit = row['propensity_score_logit']
+    for idx in indexes[current_index,:]:
+        if (current_index != idx) and (row.treatment == 1) and (df_data.loc[idx].treatment == 0):
+            return int(idx)
+         
+df_data['matched_element'] = df_data.reset_index().apply(perfom_matching_v2, axis = 1, args = (indexes, df_data))
+
+treated_with_match = ~df_data.matched_element.isna()
+treated_matched_data = df_data[treated_with_match][df_data.columns]
+treated_matched_data.head(3)
+
+def obtain_match_details(row, all_data, attribute):
+    return all_data.loc[row.matched_element][attribute]
+
+untreated_matched_data = pd.DataFrame(data = treated_matched_data.matched_element)
+
+attributes = ['challenging_exercies', 'clarity', 'class_discussion', 'confident',
+       'country', 'daily_lives', 'discuss', 'emphasis_investigation',
+       'experiments_freq', 'experiments_like', 'explain', 'express_ideas',
+       'gender', 'homework_freq', 'homework_time', 'instru_time_fromprincipal',
+       'instru_time_fromteacher', 'like', 'monitor', 'more_time_assist',
+       'more_time_prepare', 'prior_knowledge', 'problem_solving', 'ses',
+       'student_correct', 'teacher_correct', 'use_for_grades',
+       'propensity_score', 'propensity_score_logit', 'treatment', 'outcome',]
+for attr in attributes:
+    untreated_matched_data[attr] = untreated_matched_data.apply(obtain_match_details, axis = 1, all_data = df_data, attribute = attr)
+    
+untreated_matched_data = untreated_matched_data.set_index('matched_element')
+untreated_matched_data.head(3)
+
+all_mached_data = pd.concat([treated_matched_data, untreated_matched_data])
+untreated_matched_data.shape
+treated_matched_data.shape
+all_mached_data.treatment.value_counts()    
+
+
+
+#### matching review
+all_matched_data = all_mached_data.reset_index(drop = True)
+import matplotlib.pyplot as plt
+import seaborn as sns
+fig, ax = plt.subplots(2,1)
+fig.suptitle('Comparison of {} split by outcome and treatment status'.format('propensity_score_logit'))
+sns.stripplot(data = df_data, y = 'outcome', x = 'propensity_score_logit', hue = 'treatment', orient = 'h', ax = ax[0]).set(title = 'Before matching', xlim=(-6, 4))
+sns.stripplot(data = all_matched_data, y = 'outcome', x = 'propensity_score_logit', hue = 'treatment', ax = ax[1] , orient = 'h').set(title = 'After matching', xlim=(-6, 4))
+plt.subplots_adjust(hspace = 0.3)
+plt.show()
+fig.savefig("jitter_plot.png")
+
+
+
+
+args = ['like', 'clarity', 'confident', 'propensity_score_logit']
+
+def plot(arg):
+    fig, ax = plt.subplots(1,2)
+    fig.suptitle('Comparison of {} split by treatment status.'.format(arg))
+    sns.kdeplot(data = df_data, x = arg, hue = 'treatment', ax = ax[0]).set(title='Density before matching')
+    sns.kdeplot(data = all_matched_data, x = arg, hue = 'treatment',  ax = ax[1]).set(title='Density after matching')
+    plt.show()
+    fig.savefig("{}_comparison.png".format(arg))
+
+for arg in args:
+    plot(arg)
+
+
+
+
+cols = ['like', 'clarity', 'confident']
+cols.append('treatment')
+e = sns.pairplot(data = df_data[cols], hue = 'treatment')
+e.fig.suptitle("Overview before matching", y=1.08) # y= some height>1
+
+
+f = sns.pairplot(data = all_matched_data[cols], hue = 'treatment')
+f.fig.suptitle("Overview after matching", y=1.08)
+e
+f
+print(e)
+print(f)
+
+print('Overview after matching')
+
+
+#### Average Treatement effect
+
+overview = all_mached_data[['outcome','treatment']].groupby(by = ['treatment']).aggregate([np.mean, np.var, np.std, 'count'])
+print(overview)
+
+treated_outcome = overview['outcome']['mean'][1]
+treated_counterfactual_outcome = overview['outcome']['mean'][0]
+att = treated_outcome - treated_counterfactual_outcome
+print('The Average Treatment Effect (ATT): {:.4f}'.format(att))
+
+treated_outcome1 = treated_matched_data.outcome
+untreated_outcome1 = untreated_matched_data.outcome
+import scipy
+stats_results1 = scipy.stats.ttest_ind(treated_outcome1, untreated_outcome1)
+
+# tmp = pd.DataFrame(data = {'treated_outcome' : treated_outcome.values, 'untreated_outcome' : untreated_outcome.values})
+
+
+combined_data1 = pd.concat([treated_outcome1, untreated_outcome1], ignore_index=True)
+import matplotlib.pyplot as plt
+import seaborn as sns
+import scipy.stats as stats
+
+
+plt.hist(combined_data1, bins=30, alpha=0.7)
+plt.title('Histogram')
+plt.show()
+
+# Q-Q plot
+stats.probplot(combined_data1, dist="norm", plot=plt)
+plt.title('Q-Q plot')
+plt.show()
+
+
+from scipy.stats import shapiro
+
+
+stat, p = shapiro(combined_data1)
+print('Statistics=%.3f, p=%.3f' % (stat, p))
+if p > 0.05:
+    print('Sample looks Gaussian (fail to reject H0)')
+else:
+    print('Sample does not look Gaussian (reject H0)')
+
+
+from scipy.stats import normaltest
+
+
+stat, p = normaltest(combined_data1)
+print('Statistics=%.3f, p=%.3f' % (stat, p))
+if p > 0.05:
+    print('Sample looks Gaussian (fail to reject H0)')
+else:
+    print('Sample does not look Gaussian (reject H0)')
+
+
+import numpy as np
+from scipy.stats import mannwhitneyu
+
+
+stat, p = mannwhitneyu(treated_outcome1, untreated_outcome1, alternative='two-sided')
+
+print('Statistics=%.3f, p=%.3f' % (stat, p))
+if p > 0.01:
+    print('Probably the same distribution (fail to reject H0)')
+else:
+    print('Probably different distributions (reject H0)')
+
+n1 = len(treated_outcome1)
+n2 = len(untreated_outcome1)
+u = min(stat, n1 * n2 - stat)  # Getting the smaller U
+effect_size = 1 - (2 * u) / (n1 * n2)
+effect_size
+
+
+############################ pv2
+X_noweight.loc[:,'outcome'] = df.sci_pv2
+
+
+caliper = np.std(X_noweight.propensity_score) * 0.25
+
+print('\nCaliper (radius) is: {:.4f}\n'.format(caliper))
+
+df_data = X_noweight
+
+from sklearn.neighbors import NearestNeighbors
+knn = NearestNeighbors(n_neighbors=10 , p = 2, radius=caliper)
+knn.fit(df_data[['propensity_score_logit']].to_numpy())
+
+# Common support distances and indexes
+distances , indexes = knn.kneighbors(
+    df_data[['propensity_score_logit']].to_numpy(), \
+    n_neighbors=10)
+
+df_data['treatment'] = df_data['treatment'].astype(int)         
+df_data['matched_element'] = df_data.reset_index().apply(perfom_matching_v2, axis = 1, args = (indexes, df_data))
+
+treated_with_match = ~df_data.matched_element.isna()
+treated_matched_data = df_data[treated_with_match][df_data.columns]
+treated_matched_data.head(3)
+
+
+untreated_matched_data = pd.DataFrame(data = treated_matched_data.matched_element)
+
+for attr in attributes:
+    untreated_matched_data[attr] = untreated_matched_data.apply(obtain_match_details, axis = 1, all_data = df_data, attribute = attr)
+    
+untreated_matched_data = untreated_matched_data.set_index('matched_element')
+
+
+all_mached_data = pd.concat([treated_matched_data, untreated_matched_data])
+untreated_matched_data.shape
+treated_matched_data.shape
+all_mached_data.treatment.value_counts()    
+
+# =============================================================================
+#     Average Treatement effect
+# =============================================================================
+
+overview = all_mached_data[['outcome','treatment']].groupby(by = ['treatment']).aggregate([np.mean, np.var, np.std, 'count'])
+print(overview)
+
+treated_outcome = overview['outcome']['mean'][1]
+treated_counterfactual_outcome = overview['outcome']['mean'][0]
+att = treated_outcome - treated_counterfactual_outcome
+print('The Average Treatment Effect (ATT): {:.4f}'.format(att))
+
+treated_outcome2 = treated_matched_data.outcome
+untreated_outcome2 = untreated_matched_data.outcome
+import scipy
+stats_results2 = scipy.stats.ttest_ind(treated_outcome2, untreated_outcome2)
+
+# tmp = pd.DataFrame(data = {'treated_outcome' : treated_outcome.values, 'untreated_outcome' : untreated_outcome.values})
+print(treated_outcome2)
+print(untreated_outcome2)
+print(stats_results2)
+
+
+combined_data2 = pd.concat([treated_outcome2, untreated_outcome2], ignore_index=True)
+import matplotlib.pyplot as plt
+
+
+# Q-Q plot
+stats.probplot(combined_data2, dist="norm", plot=plt)
+plt.title('Q-Q plot')
+plt.show()
+
+
+from scipy.stats import shapiro
+
+
+stat, p = shapiro(combined_data2)
+print('Statistics=%.3f, p=%.3f' % (stat, p))
+if p > 0.05:
+    print('Sample looks Gaussian (fail to reject H0)')
+else:
+    print('Sample does not look Gaussian (reject H0)')
+
+
+from scipy.stats import normaltest
+
+
+stat, p = normaltest(combined_data2)
+print('Statistics=%.3f, p=%.3f' % (stat, p))
+if p > 0.05:
+    print('Sample looks Gaussian (fail to reject H0)')
+else:
+    print('Sample does not look Gaussian (reject H0)')
+
+
+import numpy as np
+from scipy.stats import mannwhitneyu
+
+stat, p = mannwhitneyu(treated_outcome2, untreated_outcome2, alternative='two-sided')
+
+print('Statistics=%.3f, p=%.3f' % (stat, p))
+if p > 0.01:
+    print('Probably the same distribution (fail to reject H0)')
+else:
+    print('Probably different distributions (reject H0)')
+
+n1 = len(treated_outcome3)
+n2 = len(untreated_outcome3)
+u = min(stat, n1 * n2 - stat)  # Getting the smaller U
+effect_size = 1 - (2 * u) / (n1 * n2)
+effect_size
+
+
+args = ['propensity_score_logit']
+
+def plot(arg):
+    fig, ax = plt.subplots(1,2)
+    fig.suptitle('Comparison of {} split by treatment status for the second PV'.format(arg))
+    sns.kdeplot(data = df_data, x = arg, hue = 'treatment', ax = ax[0]).set(title='Density before matching')
+    sns.kdeplot(data = all_mached_data, x = arg, hue = 'treatment',  ax = ax[1]).set(title='Density after matching')
+    plt.show()
+    fig.savefig("{}_comparison.png".format(arg))
+
+for arg in args:
+    plot(arg)
+
+
+data = []
+cols = ['like', 'clarity', 'confident', 'type_dummies']
+
+
+sns.pairplot(data = df[cols], hue = 'type_dummies')
+print('Overview before matching with the second PV')
+
+cols = ['like', 'clarity', 'confident', 'treatment']
+
+sns.pairplot(data = all_mached_data[cols], hue = 'treatment')
+print('Overview after matching with the second PV')
+
+
+
+
+###################### pv3
+
+X_noweight.loc[:,'outcome'] = df.sci_pv3
+
+## Matching Implementation
+caliper = np.std(X_noweight.propensity_score) * 0.25
+
+print('\nCaliper (radius) is: {:.4f}\n'.format(caliper))
+
+df_data = X_noweight
+
+from sklearn.neighbors import NearestNeighbors
+knn = NearestNeighbors(n_neighbors=10 , p = 2, radius=caliper)
+knn.fit(df_data[['propensity_score_logit']].to_numpy())
+
+# Common support distances and indexes
+distances , indexes = knn.kneighbors(
+    df_data[['propensity_score_logit']].to_numpy(), \
+    n_neighbors=10)
+
+print('For item 0, the 4 closest indexes are (first item is self):')
+for idx in indexes[0,0:4]:
+    print('Element index: {}'.format(idx))
+print('...')
+
+
+df_data['treatment'] = df_data['treatment'].astype(int)        
+df_data['matched_element'] = df_data.reset_index().apply(perfom_matching_v2, axis = 1, args = (indexes, df_data))
+
+treated_with_match = ~df_data.matched_element.isna()
+treated_matched_data = df_data[treated_with_match][df_data.columns]
+treated_matched_data.head(3)
+
+
+
+untreated_matched_data = pd.DataFrame(data = treated_matched_data.matched_element)
+
+attributes = ['challenging_exercies', 'clarity', 'class_discussion', 'confident',
+        'daily_lives', 'discuss', 'emphasis_investigation',
+       'experiments_freq', 'experiments_like', 'explain', 'express_ideas',
+       'gender', 'homework_freq', 'homework_time', 'instru_time_fromprincipal',
+       'instru_time_fromteacher', 'like', 'monitor', 'more_time_assist',
+       'more_time_prepare', 'prior_knowledge', 'problem_solving', 'ses',
+       'student_correct', 'teacher_correct', 'use_for_grades',
+       'propensity_score', 'propensity_score_logit', 'treatment', 'outcome',]
+for attr in attributes:
+    untreated_matched_data[attr] = untreated_matched_data.apply(obtain_match_details, axis = 1, all_data = df_data, attribute = attr)
+    
+untreated_matched_data = untreated_matched_data.set_index('matched_element')
+untreated_matched_data.head(3)
+
+all_mached_data = pd.concat([treated_matched_data, untreated_matched_data])
+untreated_matched_data.shape
+treated_matched_data.shape
+all_mached_data.treatment.value_counts()    
+
+# =============================================================================
+#     Average Treatement effect
+# =============================================================================
+
+overview = all_mached_data[['outcome','treatment']].groupby(by = ['treatment']).aggregate([np.mean, np.var, np.std, 'count'])
+print(overview)
+
+treated_outcome = overview['outcome']['mean'][1]
+treated_counterfactual_outcome = overview['outcome']['mean'][0]
+att = treated_outcome - treated_counterfactual_outcome
+print('The Average Treatment Effect (ATT): {:.4f}'.format(att))
+
+treated_outcome3 = treated_matched_data.outcome
+untreated_outcome3 = untreated_matched_data.outcome
+import scipy
+stats_results3 = scipy.stats.ttest_ind(treated_outcome3, untreated_outcome3)
+
+# tmp = pd.DataFrame(data = {'treated_outcome' : treated_outcome.values, 'untreated_outcome' : untreated_outcome.values})
+
+
+
+
+
+
+print(treated_outcome3)
+print(untreated_outcome3)
+print(stats_results3)
+
+
+combined_data3 = pd.concat([treated_outcome3, untreated_outcome3], ignore_index=True)
+import matplotlib.pyplot as plt
+import seaborn as sns
+import scipy.stats as stats
+
+
+plt.hist(combined_data3, bins=30, alpha=0.7)
+plt.title('Histogram')
+plt.show()
+
+# Q-Q plot
+stats.probplot(combined_data3, dist="norm", plot=plt)
+plt.title('Q-Q plot')
+plt.show()
+
+
+from scipy.stats import shapiro
+
+
+stat, p = shapiro(combined_data3)
+print('Statistics=%.3f, p=%.3f' % (stat, p))
+if p > 0.05:
+    print('Sample looks Gaussian (fail to reject H0)')
+else:
+    print('Sample does not look Gaussian (reject H0)')
+
+
+from scipy.stats import normaltest
+
+
+stat, p = normaltest(combined_data3)
+print('Statistics=%.3f, p=%.3f' % (stat, p))
+if p > 0.05:
+    print('Sample looks Gaussian (fail to reject H0)')
+else:
+    print('Sample does not look Gaussian (reject H0)')
+
+
+import numpy as np
+from scipy.stats import mannwhitneyu
+
+
+stat, p = mannwhitneyu(treated_outcome3, untreated_outcome3, alternative='two-sided')
+
+print('Statistics=%.3f, p=%.3f' % (stat, p))
+if p > 0.01:
+    print('Probably the same distribution (fail to reject H0)')
+else:
+    print('Probably different distributions (reject H0)')
+
+n1 = len(treated_outcome3)
+n2 = len(untreated_outcome3)
+u = min(stat, n1 * n2 - stat)  # Getting the smaller U
+effect_size = 1 - (2 * u) / (n1 * n2)
+effect_size
+
+
+args = ['propensity_score_logit']
+
+def plot(arg):
+    fig, ax = plt.subplots(1,2)
+    fig.suptitle('Comparison of {} split by treatment status for the third PV'.format(arg))
+    sns.kdeplot(data = df_data, x = arg, hue = 'treatment', ax = ax[0]).set(title='Density before matching')
+    sns.kdeplot(data = all_mached_data, x = arg, hue = 'treatment',  ax = ax[1]).set(title='Density after matching')
+    plt.show()
+    fig.savefig("{}_comparison.png".format(arg))
+
+for arg in args:
+    plot(arg)
+
+
+data = []
+cols = ['like', 'clarity', 'confident', 'type_dummies']
+
+
+sns.pairplot(data = df[cols], hue = 'type_dummies')
+print('Overview before matching with the third PV')
+
+cols = ['like', 'clarity', 'confident', 'treatment']
+
+sns.pairplot(data = all_mached_data[cols], hue = 'treatment')
+print('Overview after matching with the third PV')
+
+############################### pv4
+
+
+X_noweight.loc[:,'outcome'] = df.sci_pv4
+
+## Matching Implementation
+caliper = np.std(X_noweight.propensity_score) * 0.25
+
+print('\nCaliper (radius) is: {:.4f}\n'.format(caliper))
+
+df_data = X_noweight
+
+from sklearn.neighbors import NearestNeighbors
+knn = NearestNeighbors(n_neighbors=10 , p = 2, radius=caliper)
+knn.fit(df_data[['propensity_score_logit']].to_numpy())
+
+# Common support distances and indexes
+distances , indexes = knn.kneighbors(
+    df_data[['propensity_score_logit']].to_numpy(), \
+    n_neighbors=10)
+
+print('For item 0, the 4 closest indexes are (first item is self):')
+for idx in indexes[0,0:4]:
+    print('Element index: {}'.format(idx))
+print('...')
+
+
+df_data['treatment'] = df_data['treatment'].astype(int)        
+df_data['matched_element'] = df_data.reset_index().apply(perfom_matching_v2, axis = 1, args = (indexes, df_data))
+
+treated_with_match = ~df_data.matched_element.isna()
+treated_matched_data = df_data[treated_with_match][df_data.columns]
+treated_matched_data.head(3)
+
+
+
+untreated_matched_data = pd.DataFrame(data = treated_matched_data.matched_element)
+
+attributes = ['challenging_exercies', 'clarity', 'class_discussion', 'confident',
+        'daily_lives', 'discuss', 'emphasis_investigation',
+       'experiments_freq', 'experiments_like', 'explain', 'express_ideas',
+       'gender', 'homework_freq', 'homework_time', 'instru_time_fromprincipal',
+       'instru_time_fromteacher', 'like', 'monitor', 'more_time_assist',
+       'more_time_prepare', 'prior_knowledge', 'problem_solving', 'ses',
+       'student_correct', 'teacher_correct', 'use_for_grades',
+       'propensity_score', 'propensity_score_logit', 'treatment', 'outcome',]
+for attr in attributes:
+    untreated_matched_data[attr] = untreated_matched_data.apply(obtain_match_details, axis = 1, all_data = df_data, attribute = attr)
+    
+untreated_matched_data = untreated_matched_data.set_index('matched_element')
+untreated_matched_data.head(3)
+
+all_mached_data = pd.concat([treated_matched_data, untreated_matched_data])
+untreated_matched_data.shape
+treated_matched_data.shape
+all_mached_data.treatment.value_counts()    
+
+# =============================================================================
+#     Average Treatement effect
+# =============================================================================
+
+overview = all_mached_data[['outcome','treatment']].groupby(by = ['treatment']).aggregate([np.mean, np.var, np.std, 'count'])
+print(overview)
+
+treated_outcome = overview['outcome']['mean'][1]
+treated_counterfactual_outcome = overview['outcome']['mean'][0]
+att = treated_outcome - treated_counterfactual_outcome
+print('The Average Treatment Effect (ATT): {:.4f}'.format(att))
+
+treated_outcome4 = treated_matched_data.outcome
+untreated_outcome4 = untreated_matched_data.outcome
+import scipy
+stats_results4 = scipy.stats.ttest_ind(treated_outcome4, untreated_outcome4)
+
+# tmp = pd.DataFrame(data = {'treated_outcome' : treated_outcome.values, 'untreated_outcome' : untreated_outcome.values})
+
+
+
+
+
+
+print(treated_outcome4)
+print(untreated_outcome4)
+print(stats_results4)
+
+
+
+combined_data4 = pd.concat([treated_outcome4, untreated_outcome4], ignore_index=True)
+import matplotlib.pyplot as plt
+import seaborn as sns
+import scipy.stats as stats
+
+
+plt.hist(combined_data4, bins=30, alpha=0.7)
+plt.title('Histogram')
+plt.show()
+
+# Q-Q plot
+stats.probplot(combined_data4, dist="norm", plot=plt)
+plt.title('Q-Q plot')
+plt.show()
+
+
+from scipy.stats import shapiro
+
+
+stat, p = shapiro(combined_data4)
+print('Statistics=%.3f, p=%.3f' % (stat, p))
+if p > 0.05:
+    print('Sample looks Gaussian (fail to reject H0)')
+else:
+    print('Sample does not look Gaussian (reject H0)')
+
+
+from scipy.stats import normaltest
+
+
+stat, p = normaltest(combined_data4)
+print('Statistics=%.3f, p=%.3f' % (stat, p))
+if p > 0.05:
+    print('Sample looks Gaussian (fail to reject H0)')
+else:
+    print('Sample does not look Gaussian (reject H0)')
+
+
+import numpy as np
+from scipy.stats import mannwhitneyu
+
+
+stat, p = mannwhitneyu(treated_outcome4, untreated_outcome4, alternative='two-sided')
+
+print('Statistics=%.3f, p=%.3f' % (stat, p))
+if p > 0.01:
+    print('Probably the same distribution (fail to reject H0)')
+else:
+    print('Probably different distributions (reject H0)')
+
+n1 = len(treated_outcome4)
+n2 = len(untreated_outcome4)
+u = min(stat, n1 * n2 - stat)  # Getting the smaller U
+effect_size = 1 - (2 * u) / (n1 * n2)
+effect_size
+
+
+args = ['propensity_score_logit']
+
+def plot(arg):
+    fig, ax = plt.subplots(1,2)
+    fig.suptitle('Comparison of {} split by treatment status for the fourth PV'.format(arg))
+    sns.kdeplot(data = df_data, x = arg, hue = 'treatment', ax = ax[0]).set(title='Density before matching')
+    sns.kdeplot(data = all_mached_data, x = arg, hue = 'treatment',  ax = ax[1]).set(title='Density after matching')
+    plt.show()
+    fig.savefig("{}_comparison.png".format(arg))
+
+for arg in args:
+    plot(arg)
+
+
+data = []
+cols = ['like', 'clarity', 'confident', 'type_dummies']
+
+
+sns.pairplot(data = df[cols], hue = 'type_dummies')
+print('Overview before matching with the fourth PV')
+
+cols = ['like', 'clarity', 'confident', 'treatment']
+
+sns.pairplot(data = all_mached_data[cols], hue = 'treatment')
+print('Overview after matching with the fourth PV')
+
+
+
+
+############################ pv5
+
+
+X_noweight.loc[:,'outcome'] = df.sci_pv5
+
+## Matching Implementation
+caliper = np.std(X_noweight.propensity_score) * 0.25
+
+print('\nCaliper (radius) is: {:.4f}\n'.format(caliper))
+
+df_data = X_noweight
+
+from sklearn.neighbors import NearestNeighbors
+knn = NearestNeighbors(n_neighbors=10 , p = 2, radius=caliper)
+knn.fit(df_data[['propensity_score_logit']].to_numpy())
+
+# Common support distances and indexes
+distances , indexes = knn.kneighbors(
+    df_data[['propensity_score_logit']].to_numpy(), \
+    n_neighbors=10)
+
+print('For item 0, the 4 closest indexes are (first item is self):')
+for idx in indexes[0,0:4]:
+    print('Element index: {}'.format(idx))
+print('...')
+
+df_data['treatment'] = df_data['treatment'].astype(int)
+df_data['matched_element'] = df_data.reset_index().apply(perfom_matching_v2, axis = 1, args = (indexes, df_data))
+
+treated_with_match = ~df_data.matched_element.isna()
+treated_matched_data = df_data[treated_with_match][df_data.columns]
+treated_matched_data.head(3)
+
+
+
+untreated_matched_data = pd.DataFrame(data = treated_matched_data.matched_element)
+
+attributes = ['challenging_exercies', 'clarity', 'class_discussion', 'confident',
+        'daily_lives', 'discuss', 'emphasis_investigation',
+       'experiments_freq', 'experiments_like', 'explain', 'express_ideas',
+       'gender', 'homework_freq', 'homework_time', 'instru_time_fromprincipal',
+       'instru_time_fromteacher', 'like', 'monitor', 'more_time_assist',
+       'more_time_prepare', 'prior_knowledge', 'problem_solving', 'ses',
+       'student_correct', 'teacher_correct', 'use_for_grades',
+       'propensity_score', 'propensity_score_logit', 'treatment', 'outcome',]
+for attr in attributes:
+    untreated_matched_data[attr] = untreated_matched_data.apply(obtain_match_details, axis = 1, all_data = df_data, attribute = attr)
+    
+untreated_matched_data = untreated_matched_data.set_index('matched_element')
+untreated_matched_data.head(3)
+
+all_mached_data = pd.concat([treated_matched_data, untreated_matched_data])
+untreated_matched_data.shape
+treated_matched_data.shape
+all_mached_data.treatment.value_counts()    
+
+# =============================================================================
+#     Average Treatement effect
+# =============================================================================
+
+overview = all_mached_data[['outcome','treatment']].groupby(by = ['treatment']).aggregate([np.mean, np.var, np.std, 'count'])
+print(overview)
+
+treated_outcome = overview['outcome']['mean'][1]
+treated_counterfactual_outcome = overview['outcome']['mean'][0]
+att = treated_outcome - treated_counterfactual_outcome
+print('The Average Treatment Effect (ATT): {:.4f}'.format(att))
+
+treated_outcome5 = treated_matched_data.outcome
+untreated_outcome5 = untreated_matched_data.outcome
+import scipy
+stats_results5 = scipy.stats.ttest_ind(treated_outcome5, untreated_outcome5)
+
+# tmp = pd.DataFrame(data = {'treated_outcome' : treated_outcome.values, 'untreated_outcome' : untreated_outcome.values})
+
+print(treated_outcome5)
+print(untreated_outcome5)
+print(stats_results5)
+
+
+
+
+
+
+
+
+
+combined_data5 = pd.concat([treated_outcome5, untreated_outcome5], ignore_index=True)
+import matplotlib.pyplot as plt
+import seaborn as sns
+import scipy.stats as stats
+
+
+plt.hist(combined_data5, bins=30, alpha=0.7)
+plt.title('Histogram')
+plt.show()
+
+# Q-Q plot
+stats.probplot(combined_data5, dist="norm", plot=plt)
+plt.title('Q-Q plot')
+plt.show()
+
+
+from scipy.stats import shapiro
+
+
+stat, p = shapiro(combined_data5)
+print('Statistics=%.3f, p=%.3f' % (stat, p))
+if p > 0.05:
+    print('Sample looks Gaussian (fail to reject H0)')
+else:
+    print('Sample does not look Gaussian (reject H0)')
+
+
+from scipy.stats import normaltest
+
+
+stat, p = normaltest(combined_data5)
+print('Statistics=%.3f, p=%.3f' % (stat, p))
+if p > 0.05:
+    print('Sample looks Gaussian (fail to reject H0)')
+else:
+    print('Sample does not look Gaussian (reject H0)')
+
+
+import numpy as np
+from scipy.stats import mannwhitneyu
+
+
+stat, p = mannwhitneyu(treated_outcome5, untreated_outcome5, alternative='two-sided')
+
+print('Statistics=%.3f, p=%.3f' % (stat, p))
+if p > 0.01:
+    print('Probably the same distribution (fail to reject H0)')
+else:
+    print('Probably different distributions (reject H0)')
+
+n1 = len(treated_outcome5)
+n2 = len(untreated_outcome5)
+u = min(stat, n1 * n2 - stat)  # Getting the smaller U
+effect_size = 1 - (2 * u) / (n1 * n2)
+effect_size
+
+
+args = ['propensity_score_logit']
+
+def plot(arg):
+    fig, ax = plt.subplots(1,2)
+    fig.suptitle('Comparison of {} split by treatment status for the fifth PV'.format(arg))
+    sns.kdeplot(data = df_data, x = arg, hue = 'treatment', ax = ax[0]).set(title='Density before matching')
+    sns.kdeplot(data = all_mached_data, x = arg, hue = 'treatment',  ax = ax[1]).set(title='Density after matching')
+    plt.show()
+    fig.savefig("{}_comparison.png".format(arg))
+
+for arg in args:
+    plot(arg)
+
+
+data = []
+cols = ['like', 'clarity', 'confident', 'type_dummies']
+
+
+sns.pairplot(data = df[cols], hue = 'type_dummies')
+print('Overview before matching with the fifth PV')
+
+cols = ['like', 'clarity', 'confident', 'treatment']
+
+sns.pairplot(data = all_mached_data[cols], hue = 'treatment')
+print('Overview after matching with the fifth PV')
+
+
+# =============================================================================
+# Hyperparameter tuning
+# =============================================================================
+
+X = df.drop(["sci_pv1", "sci_pv2", "sci_pv3", "sci_pv4", "sci_pv5"], axis = 1).values
+X_noweight = df.drop(["sci_pv1", "sci_pv2", "sci_pv3", "sci_pv4", "sci_pv5", 'weight'], axis = 1).values
+names = df.drop(["sci_pv1", "sci_pv2", "sci_pv3", "sci_pv4", "sci_pv5", 'weight'], axis = 1).columns
+
+y1 = df['sci_pv1'].values
+y2 = df['sci_pv2'].values
+y3 = df['sci_pv3'].values
+y4 = df['sci_pv4'].values
+y5 = df['sci_pv5'].values
+
+from sklearn.model_selection import train_test_split
+X_train1, X_test1, y_train1, y_test1 = train_test_split(X, y1, test_size = 0.3, random_state = 42)
+X_train_weight1 = X_train1[:, 27]
+X_train1, X_test1, y_train1, y_test1 = train_test_split(X_noweight, y1, test_size = 0.3, random_state = 42)
+
+from sklearn.model_selection import train_test_split
+X_train2, X_test2, y_train2, y_test2 = train_test_split(X, y2, test_size = 0.3, random_state = 42)
+X_train_weight2 = X_train2[:, 27]
+X_train2, X_test2, y_train2, y_test2 = train_test_split(X_noweight, y2, test_size = 0.3, random_state = 42)
+
+
+from sklearn.model_selection import train_test_split
+X_train3, X_test3, y_train3, y_test3 = train_test_split(X, y3, test_size = 0.3, random_state = 42)
+X_train_weight3 = X_train3[:, 27]
+X_train3, X_test3, y_train3, y_test3 = train_test_split(X_noweight, y3, test_size = 0.3, random_state = 42)
+
+from sklearn.model_selection import train_test_split
+X_train4, X_test4, y_train4, y_test4 = train_test_split(X, y4, test_size = 0.3, random_state = 42)
+X_train_weight4 = X_train4[:, 27]
+X_train4, X_test4, y_train4, y_test4 = train_test_split(X_noweight, y4, test_size = 0.3, random_state = 42)
+
+from sklearn.model_selection import train_test_split
+X_train5, X_test5, y_train5, y_test5 = train_test_split(X, y5, test_size = 0.3, random_state = 42)
+X_train_weight5 = X_train5[:, 27]
+X_train5, X_test5, y_train5, y_test5 = train_test_split(X_noweight, y5, test_size = 0.3, random_state = 42)
+
+
+
+
+
+
+##################### lasso
+from sklearn.metrics import r2_score, mean_squared_error, make_scorer
+from sklearn.linear_model import Lasso
+from sklearn.model_selection import GridSearchCV
+
+# Setup the hyperparameter grid
+alpha = np.linspace(0.1, 50, 50)
+param_grid = {'alpha': alpha}
+
+lasso = Lasso()
+
+# Instantiate the GridSearchCV object: logreg_cv
+lasso_cv = GridSearchCV(lasso, param_grid, cv= 10, scoring= ['neg_mean_squared_error', 'r2'], 
+                       refit='neg_mean_squared_error')
+
+# Fit it to the data
+lasso_cv.fit(X_train_scaled1, y_train1, sample_weight = X_train_weight1)
+print("Tuned Lasso Regression Parameters: {}".format(lasso_cv.best_params_)) 
+print("Best score is {}".format(lasso_cv.best_score_))
+# 0.1
+lasso_cv.cv_results_
+r2_scores = lasso_cv.cv_results_['mean_test_r2']
+rmse_scores = np.sqrt(-lasso_cv.cv_results_['mean_test_neg_mean_squared_error'])
+print("Best RMSE on Validation:", np.min(rmse_scores))
+print("Corresponding R^2 on Validation:", r2_scores[np.argmin(rmse_scores)])
+
+
+lasso_cv.fit(X_train_scaled2, y_train2, sample_weight = X_train_weight2)
+print("Tuned Lasso Regression Parameters: {}".format(lasso_cv.best_params_)) 
+print("Best score is {}".format(lasso_cv.best_score_))
+r2_scores = lasso_cv.cv_results_['mean_test_r2']
+rmse_scores = np.sqrt(-lasso_cv.cv_results_['mean_test_neg_mean_squared_error'])
+print("Best RMSE on Validation:", np.min(rmse_scores))
+print("Corresponding R^2 on Validation:", r2_scores[np.argmin(rmse_scores)])
+
+lasso_cv.fit(X_train_scaled3, y_train3, sample_weight = X_train_weight3)
+print("Tuned Lasso Regression Parameters: {}".format(lasso_cv.best_params_)) 
+print("Best score is {}".format(lasso_cv.best_score_))
+r2_scores = lasso_cv.cv_results_['mean_test_r2']
+rmse_scores = np.sqrt(-lasso_cv.cv_results_['mean_test_neg_mean_squared_error'])
+print("Best RMSE on Validation:", np.min(rmse_scores))
+print("Corresponding R^2 on Validation:", r2_scores[np.argmin(rmse_scores)])
+
+
+lasso_cv.fit(X_train_scaled4, y_train4, sample_weight = X_train_weight4)
+print("Tuned Lasso Regression Parameters: {}".format(lasso_cv.best_params_)) 
+print("Best score is {}".format(lasso_cv.best_score_))
+r2_scores = lasso_cv.cv_results_['mean_test_r2']
+rmse_scores = np.sqrt(-lasso_cv.cv_results_['mean_test_neg_mean_squared_error'])
+print("Best RMSE on Validation:", np.min(rmse_scores))
+print("Corresponding R^2 on Validation:", r2_scores[np.argmin(rmse_scores)])
+
+
+
+
+
+lasso_cv.fit(X_train_scaled5, y_train5, sample_weight = X_train_weight5)
+print("Tuned Lasso Regression Parameters: {}".format(lasso_cv.best_params_)) 
+print("Best score is {}".format(lasso_cv.best_score_))
+r2_scores = lasso_cv.cv_results_['mean_test_r2']
+rmse_scores = np.sqrt(-lasso_cv.cv_results_['mean_test_neg_mean_squared_error'])
+print("Best RMSE on Validation:", np.min(rmse_scores))
+print("Corresponding R^2 on Validation:", r2_scores[np.argmin(rmse_scores)])
+
+
+##################### decision tree
+from scipy.stats import randint
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.model_selection import RandomizedSearchCV
+
+# Setup the parameters and distributions to sample from: param_dist
+param_dist = {"max_depth": [3, 6, 9],
+              "max_features": randint(1, 25),
+              "min_samples_leaf": randint(1, 25),
+              "criterion": ['squared_error', 'friedman_mse']}
+
+# Instantiate a Decision Tree classifier: tree
+tree = DecisionTreeRegressor()
+
+# Instantiate the RandomizedSearchCV object: tree_cv
+tree_cv = RandomizedSearchCV(tree, param_dist, cv= 10, random_state= 42,
+                             scoring= ['neg_mean_squared_error', 'r2'], 
+                             refit='neg_mean_squared_error')
+
+# Fit it to the data
+tree_cv.fit(X_train1, y_train1, sample_weight = X_train_weight1)
+print("Tuned Decision Tree Parameters: {}".format(tree_cv.best_params_))
+print("Best score is {}".format(tree_cv.best_score_))
+r2_scores = tree_cv.cv_results_['mean_test_r2']
+rmse_scores = np.sqrt(-tree_cv.cv_results_['mean_test_neg_mean_squared_error'])
+print("Best RMSE on Validation:", np.min(rmse_scores))
+print("Corresponding R^2 on Validation:", r2_scores[np.argmin(rmse_scores)])
+
+
+
+tree_cv.fit(X_train2, y_train2, sample_weight = X_train_weight2)
+
+print("Tuned Decision Tree Parameters: {}".format(tree_cv.best_params_))
+print("Best score is {}".format(tree_cv.best_score_))
+r2_scores = tree_cv.cv_results_['mean_test_r2']
+rmse_scores = np.sqrt(-tree_cv.cv_results_['mean_test_neg_mean_squared_error'])
+print("Best RMSE on Validation:", np.min(rmse_scores))
+print("Corresponding R^2 on Validation:", r2_scores[np.argmin(rmse_scores)])
+
+
+
+
+tree_cv.fit(X_train3, y_train3, sample_weight = X_train_weight3)
+
+print("Tuned Decision Tree Parameters: {}".format(tree_cv.best_params_))
+print("Best score is {}".format(tree_cv.best_score_))
+r2_scores = tree_cv.cv_results_['mean_test_r2']
+rmse_scores = np.sqrt(-tree_cv.cv_results_['mean_test_neg_mean_squared_error'])
+print("Best RMSE on Validation:", np.min(rmse_scores))
+print("Corresponding R^2 on Validation:", r2_scores[np.argmin(rmse_scores)])
+
+
+
+
+tree_cv.fit(X_train4, y_train4, sample_weight = X_train_weight4)
+
+print("Tuned Decision Tree Parameters: {}".format(tree_cv.best_params_))
+print("Best score is {}".format(tree_cv.best_score_))
+r2_scores = tree_cv.cv_results_['mean_test_r2']
+rmse_scores = np.sqrt(-tree_cv.cv_results_['mean_test_neg_mean_squared_error'])
+print("Best RMSE on Validation:", np.min(rmse_scores))
+print("Corresponding R^2 on Validation:", r2_scores[np.argmin(rmse_scores)])
+
+
+
+tree_cv.fit(X_train5, y_train5, sample_weight = X_train_weight5)
+
+print("Tuned Decision Tree Parameters: {}".format(tree_cv.best_params_))
+print("Best score is {}".format(tree_cv.best_score_))
+r2_scores = tree_cv.cv_results_['mean_test_r2']
+rmse_scores = np.sqrt(-tree_cv.cv_results_['mean_test_neg_mean_squared_error'])
+print("Best RMSE on Validation:", np.min(rmse_scores))
+print("Corresponding R^2 on Validation:", r2_scores[np.argmin(rmse_scores)])
+
+
+##################### random forest
+from sklearn.ensemble import RandomForestRegressor
+
+# Define the dictionary 'params_rf'
+params_rf = {'bootstrap': [True], 
+                'n_estimators': [100, 350, 500],
+                'min_samples_leaf': [3, 4, 5],
+                'min_samples_split': [8, 10, 12],
+                'max_features': ['log2','auto', 'sqrt'],
+                'max_depth': [4, 8, 12, 16, 20]}
+# Instantiate rf
+rf = RandomForestRegressor(random_state=2)
+
+
+# Instantiate grid_rf
+from sklearn.model_selection import GridSearchCV
+grid_rf = GridSearchCV(estimator = rf,
+                       param_grid = params_rf,
+                       scoring= 'neg_mean_squared_error',
+                       cv = 10,
+                       verbose = 1,
+                       n_jobs = -1)
+
+grid_rf.fit(X_train1, y_train1, sample_weight = X_train_weight1)
+
+from sklearn.metrics import r2_score
+from sklearn.metrics import mean_squared_error
+# Best parameters, best training R² and RMSE from cross-validation (validation metrics)
+
+print("Tuned random forest Parameters: {}".format(grid_rf.best_params_))
+print("Best validation R squared (cross-validated): {}".format(grid_rf.best_score_))
+
+
+
+# Compute R² and RMSE on the whole training set
+train_r2 = r2_score(y_train1, grid_rf.predict(X_train1))
+train_rmse = np.sqrt(mean_squared_error(y_train1, grid_rf.predict(X_train1)))
+
+
+# Predict on the test set
+y_pred = grid_rf.predict(X_test1)
+
+# Calculate R² and RMSE for the test set
+test_r2 = r2_score(y_test1, y_pred)
+test_rmse = np.sqrt(mean_squared_error(y_test1, y_pred))
+
+print("Training set R squared: {}".format(train_r2))
+print("Training set RMSE: {}".format(train_rmse))
+print("Test set R squared: {}".format(test_r2))
+print("Test set RMSE: {}".format(test_rmse))
+
+grid_rf.fit(X_train2, y_train2, sample_weight = X_train_weight2)
+
+from sklearn.metrics import r2_score
+from sklearn.metrics import mean_squared_error
+# Best parameters, best training R² and RMSE from cross-validation (validation metrics)
+
+print("Tuned random forest Parameters: {}".format(grid_rf.best_params_))
+print("Best validation R squared (cross-validated): {}".format(grid_rf.best_score_))
+
+
+
+# Compute R² and RMSE on the whole training set
+train_r2 = r2_score(y_train2, grid_rf.predict(X_train2))
+train_rmse = np.sqrt(mean_squared_error(y_train2, grid_rf.predict(X_train2)))
+
+
+# Predict on the test set
+y_pred = grid_rf.predict(X_test2)
+
+# Calculate R² and RMSE for the test set
+test_r2 = r2_score(y_test2, y_pred)
+test_rmse = np.sqrt(mean_squared_error(y_test2, y_pred))
+
+print("Training set R squared: {}".format(train_r2))
+print("Training set RMSE: {}".format(train_rmse))
+print("Test set R squared: {}".format(test_r2))
+print("Test set RMSE: {}".format(test_rmse))
+
+
+grid_rf.fit(X_train3, y_train3, sample_weight = X_train_weight3)
+
+from sklearn.metrics import r2_score
+from sklearn.metrics import mean_squared_error
+# Best parameters, best training R² and RMSE from cross-validation (validation metrics)
+
+print("Tuned random forest Parameters: {}".format(grid_rf.best_params_))
+print("Best validation R squared (cross-validated): {}".format(grid_rf.best_score_))
+
+
+
+# Compute R² and RMSE on the whole training set
+train_r2 = r2_score(y_train3, grid_rf.predict(X_train3))
+train_rmse = np.sqrt(mean_squared_error(y_train3, grid_rf.predict(X_train3)))
+
+
+# Predict on the test set
+y_pred = grid_rf.predict(X_test3)
+
+# Calculate R² and RMSE for the test set
+test_r2 = r2_score(y_test3, y_pred)
+test_rmse = np.sqrt(mean_squared_error(y_test3, y_pred))
+
+print("Training set R squared: {}".format(train_r2))
+print("Training set RMSE: {}".format(train_rmse))
+print("Test set R squared: {}".format(test_r2))
+print("Test set RMSE: {}".format(test_rmse))
+
+
+grid_rf.fit(X_train4, y_train4, sample_weight = X_train_weight4)
+
+from sklearn.metrics import r2_score
+from sklearn.metrics import mean_squared_error
+# Best parameters, best training R² and RMSE from cross-validation (validation metrics)
+
+print("Tuned random forest Parameters: {}".format(grid_rf.best_params_))
+print("Best validation R squared (cross-validated): {}".format(grid_rf.best_score_))
+
+
+
+# Compute R² and RMSE on the whole training set
+train_r2 = r2_score(y_train4, grid_rf.predict(X_train4))
+train_rmse = np.sqrt(mean_squared_error(y_train4, grid_rf.predict(X_train4)))
+
+
+# Predict on the test set
+y_pred = grid_rf.predict(X_test4)
+
+# Calculate R² and RMSE for the test set
+test_r2 = r2_score(y_test4, y_pred)
+test_rmse = np.sqrt(mean_squared_error(y_test4, y_pred))
+
+print("Training set R squared: {}".format(train_r2))
+print("Training set RMSE: {}".format(train_rmse))
+print("Test set R squared: {}".format(test_r2))
+print("Test set RMSE: {}".format(test_rmse))
+
+
+grid_rf.fit(X_train5, y_train5, sample_weight = X_train_weight5)
+
+from sklearn.metrics import r2_score
+from sklearn.metrics import mean_squared_error
+# Best parameters, best training R² and RMSE from cross-validation (validation metrics)
+
+print("Tuned random forest Parameters: {}".format(grid_rf.best_params_))
+print("Best validation R squared (cross-validated): {}".format(grid_rf.best_score_))
+
+
+
+# Compute R² and RMSE on the whole training set
+train_r2 = r2_score(y_train5, grid_rf.predict(X_train5))
+train_rmse = np.sqrt(mean_squared_error(y_train5, grid_rf.predict(X_train5)))
+
+
+# Predict on the test set
+y_pred = grid_rf.predict(X_test5)
+
+# Calculate R² and RMSE for the test set
+test_r2 = r2_score(y_test5, y_pred)
+test_rmse = np.sqrt(mean_squared_error(y_test5, y_pred))
+
+print("Training set R squared: {}".format(train_r2))
+print("Training set RMSE: {}".format(train_rmse))
+print("Test set R squared: {}".format(test_r2))
+print("Test set RMSE: {}".format(test_rmse))
+
+##################### Neural network
+def make_regression_ann(Optimizer_trial):
+    from keras.models import Sequential
+    from keras.layers import Dense
+    
+    model = Sequential()
+    model.add(Dense(units=5, input_dim=X_train.shape[1], kernel_initializer='normal', activation='relu'))
+    model.add(Dense(units=5, kernel_initializer='normal', activation='relu'))
+    model.add(Dense(1, kernel_initializer='normal'))
+    model.compile(loss='mean_squared_error', optimizer=Optimizer_trial)
+    return model
+
+from sklearn.model_selection import GridSearchCV
+from keras.wrappers.scikit_learn import KerasRegressor
+
+# Listing all the parameters to try
+Parameter_Trials={'batch_size':[10,20,30],
+                      'epochs':[10,20,100],
+                    'Optimizer_trial':['adam', 'rmsprop']
+                 }
+
+# Creating the regression ANN model
+RegModel = KerasRegressor(make_regression_ann, verbose=0)
+
+from sklearn.metrics import make_scorer
+
+# Defining a custom function to calculate accuracy
+def Accuracy_Score(orig,pred):
+    MAPE = np.mean(100 * (np.abs(orig-pred)/orig))
+    print('#'*70,'Accuracy:', 100-MAPE)
+    return(100-MAPE)
+
+custom_Scoring = make_scorer(Accuracy_Score, greater_is_better=True)
+
+
+# Creating the Grid search space
+# See different scoring methods by using sklearn.metrics.SCORERS.keys()
+grid_search = GridSearchCV(estimator = RegModel, 
+                         param_grid = Parameter_Trials, 
+                         scoring = custom_Scoring, 
+                         cv=10)
+
+
+# Running Grid Search for different paramenters
+
+grid_search.fit(X_train_scaled, y_train1, sample_weight = X_train_weight1, verbose=1)
+
+print(grid_search.best_params_)
+print(grid_search.best_score_)
+# print(grid_search.cv_results_)
+
+
+# Best parameters, best training R² and RMSE from cross-validation (validation metrics)
+
+print("Tuned random forest Parameters: {}".format(grid_search.best_params_))
+print("Best validation R squared (cross-validated): {}".format(grid_search.best_score_))
+
+
+from sklearn.metrics import r2_score
+from sklearn.metrics import mean_squared_error
+# Predict on the test set
+nn_pred = grid_search.predict(X_test_scaled)
+# Calculate R² and RMSE for the test set
+test_r2 = r2_score(y_test1, nn_pred)
+test_rmse = np.sqrt(mean_squared_error(y_test1, nn_pred))
+# Compute R² and RMSE on the whole training set
+train_r2 = r2_score(y_train1, grid_search.predict(X_train_scaled))
+train_rmse = np.sqrt(mean_squared_error(y_train1, grid_search.predict(X_train_scaled)))
+
+
+print("Training set R squared: {}".format(train_r2))
+print("Training set RMSE: {}".format(train_rmse))
+print("Test set R squared: {}".format(test_r2))
+print("Test set RMSE: {}".format(test_rmse))
+
+
+grid_search.fit(X_train_scaled, y_train2, sample_weight = X_train_weight2, verbose=1)
+
+print(grid_search.best_params_)
+print(grid_search.best_score_)
+# print(grid_search.cv_results_)
+
+
+# Best parameters, best training R² and RMSE from cross-validation (validation metrics)
+
+print("Tuned random forest Parameters: {}".format(grid_search.best_params_))
+print("Best validation R squared (cross-validated): {}".format(grid_search.best_score_))
+
+
+from sklearn.metrics import r2_score
+from sklearn.metrics import mean_squared_error
+# Predict on the test set
+nn_pred = grid_search.predict(X_test_scaled)
+# Calculate R² and RMSE for the test set
+test_r2 = r2_score(y_test2, nn_pred)
+test_rmse = np.sqrt(mean_squared_error(y_test2, nn_pred))
+# Compute R² and RMSE on the whole training set
+train_r2 = r2_score(y_train2, grid_search.predict(X_train_scaled))
+train_rmse = np.sqrt(mean_squared_error(y_train2, grid_search.predict(X_train_scaled)))
+
+
+grid_search.fit(X_train_scaled, y_train3, sample_weight = X_train_weight3, verbose=1)
+
+print(grid_search.best_params_)
+print(grid_search.best_score_)
+# print(grid_search.cv_results_)
+
+
+# Best parameters, best training R² and RMSE from cross-validation (validation metrics)
+
+print("Tuned random forest Parameters: {}".format(grid_search.best_params_))
+print("Best validation R squared (cross-validated): {}".format(grid_search.best_score_))
+
+
+from sklearn.metrics import r2_score
+from sklearn.metrics import mean_squared_error
+# Predict on the test set
+nn_pred = grid_search.predict(X_test_scaled)
+# Calculate R² and RMSE for the test set
+test_r2 = r2_score(y_test3, nn_pred)
+test_rmse = np.sqrt(mean_squared_error(y_test3, nn_pred))
+# Compute R² and RMSE on the whole training set
+train_r2 = r2_score(y_train3, grid_search.predict(X_train_scaled))
+train_rmse = np.sqrt(mean_squared_error(y_train3, grid_search.predict(X_train_scaled)))
+
+
+print("Training set R squared: {}".format(train_r2))
+print("Training set RMSE: {}".format(train_rmse))
+print("Test set R squared: {}".format(test_r2))
+print("Test set RMSE: {}".format(test_rmse))
+
+
+grid_search.fit(X_train_scaled, y_train4, sample_weight = X_train_weight4, verbose=1)
+
+print(grid_search.best_params_)
+print(grid_search.best_score_)
+# print(grid_search.cv_results_)
+
+
+# Best parameters, best training R² and RMSE from cross-validation (validation metrics)
+
+print("Tuned random forest Parameters: {}".format(grid_search.best_params_))
+print("Best validation R squared (cross-validated): {}".format(grid_search.best_score_))
+
+
+from sklearn.metrics import r2_score
+from sklearn.metrics import mean_squared_error
+# Predict on the test set
+nn_pred = grid_search.predict(X_test_scaled)
+# Calculate R² and RMSE for the test set
+test_r2 = r2_score(y_test4, nn_pred)
+test_rmse = np.sqrt(mean_squared_error(y_test4, nn_pred))
+# Compute R² and RMSE on the whole training set
+train_r2 = r2_score(y_train4, grid_search.predict(X_train_scaled))
+train_rmse = np.sqrt(mean_squared_error(y_train4, grid_search.predict(X_train_scaled)))
+
+
+print("Training set R squared: {}".format(train_r2))
+print("Training set RMSE: {}".format(train_rmse))
+print("Test set R squared: {}".format(test_r2))
+print("Test set RMSE: {}".format(test_rmse))
+
+
+
+grid_search.fit(X_train_scaled, y_train5, sample_weight = X_train_weight5, verbose=1)
+
+print(grid_search.best_params_)
+print(grid_search.best_score_)
+# print(grid_search.cv_results_)
+
+
+# Best parameters, best training R² and RMSE from cross-validation (validation metrics)
+
+print("Tuned random forest Parameters: {}".format(grid_search.best_params_))
+print("Best validation R squared (cross-validated): {}".format(grid_search.best_score_))
+
+
+from sklearn.metrics import r2_score
+from sklearn.metrics import mean_squared_error
+# Predict on the test set
+nn_pred = grid_search.predict(X_test_scaled)
+# Calculate R² and RMSE for the test set
+test_r2 = r2_score(y_test5, nn_pred)
+test_rmse = np.sqrt(mean_squared_error(y_test5, nn_pred))
+# Compute R² and RMSE on the whole training set
+train_r2 = r2_score(y_train5, grid_search.predict(X_train_scaled))
+train_rmse = np.sqrt(mean_squared_error(y_train5, grid_search.predict(X_train_scaled)))
+
+
+print("Training set R squared: {}".format(train_r2))
+print("Training set RMSE: {}".format(train_rmse))
+print("Test set R squared: {}".format(test_r2))
+print("Test set RMSE: {}".format(test_rmse))
+
+
+
+
+
+
+# =============================================================================
+# Training and Testing
+# =============================================================================
+
+
+
+### linear regression
+from sklearn import linear_model
+reg = linear_model.LinearRegression()
+reg.fit(X_train_scaled1, y_train1, sample_weight = X_train_weight1)
+lr_train = reg.predict(X_train_scaled1)
+lr_pred = reg.predict(X_test_scaled1)
+print(r2_score(y_train1, lr_train))
+print(root_mean_squared_error(y_train1, lr_train)) # RMSE
+print(r2_score(y_test1, lr_pred))
+print(root_mean_squared_error(y_test1, lr_pred)) # RMSE
+
+
+reg.fit(X_train_scaled2, y_train2, sample_weight = X_train_weight2)
+lr_train = reg.predict(X_train_scaled2)
+lr_pred = reg.predict(X_test_scaled2)
+print(r2_score(y_train2, lr_train))
+print(root_mean_squared_error(y_train2, lr_train)) # RMSE
+print(r2_score(y_test2, lr_pred))
+print(root_mean_squared_error(y_test2, lr_pred)) # RMSE
+
+reg.fit(X_train_scaled3, y_train3, sample_weight = X_train_weight3)
+lr_train = reg.predict(X_train_scaled3)
+lr_pred = reg.predict(X_test_scaled3)
+print(r2_score(y_train3, lr_train))
+print(root_mean_squared_error(y_train3, lr_train)) # RMSE
+print(r2_score(y_test3, lr_pred))
+print(root_mean_squared_error(y_test3, lr_pred)) # RMSE
+
+
+
+reg.fit(X_train_scaled4, y_train4, sample_weight = X_train_weight4)
+lr_train = reg.predict(X_train_scaled4)
+lr_pred = reg.predict(X_test_scaled4)
+print(r2_score(y_train4, lr_train))
+print(root_mean_squared_error(y_train4, lr_train)) # RMSE
+print(r2_score(y_test4, lr_pred))
+print(root_mean_squared_error(y_test4, lr_pred)) # RMSE
+
+
+
+reg.fit(X_train_scaled5, y_train5, sample_weight = X_train_weight5)
+lr_train = reg.predict(X_train_scaled5)
+lr_pred = reg.predict(X_test_scaled5)
+print(r2_score(y_train5, lr_train))
+print(root_mean_squared_error(y_train5, lr_train)) # RMSE
+print(r2_score(y_test5, lr_pred))
+print(root_mean_squared_error(y_test5, lr_pred)) # RMSE
+
+
+
+### lasso
+lasso = Lasso(alpha = 0.1)
+lasso.fit(X_train_scaled1, y_train1, sample_weight = X_train_weight1)
+lasso_train = lasso.predict(X_train_scaled1)
+print(r2_score(y_train1, lasso_train))
+print(root_mean_squared_error(y_train1, lasso_train)) # RMSE
+
+lasso_predict = lasso.predict(X_test_scaled1)
+print(r2_score(y_test1, lasso_predict))
+print(root_mean_squared_error(y_test1, lasso_predict)) # RMSE
+
+
+
+
+
+lasso.fit(X_train_scaled2, y_train2, sample_weight = X_train_weight2)
+lasso_train = lasso.predict(X_train_scaled2)
+print(r2_score(y_train2, lasso_train))
+print(root_mean_squared_error(y_train2, lasso_train)) # RMSE
+
+lasso_predict = lasso.predict(X_test_scaled2)
+print(r2_score(y_test2, lasso_predict))
+print(root_mean_squared_error(y_test2, lasso_predict)) # RMSE
+
+
+
+
+
+
+lasso.fit(X_train_scaled3, y_train3, sample_weight = X_train_weight3)
+lasso_train = lasso.predict(X_train_scaled3)
+print(r2_score(y_train3, lasso_train))
+print(root_mean_squared_error(y_train3, lasso_train)) # RMSE
+
+lasso_predict = lasso.predict(X_test_scaled3)
+print(r2_score(y_test3, lasso_predict))
+print(root_mean_squared_error(y_test3, lasso_predict)) # RMSE
+
+
+
+
+
+
+lasso.fit(X_train_scaled4, y_train4, sample_weight = X_train_weight4)
+lasso_train = lasso.predict(X_train_scaled4)
+print(r2_score(y_train4, lasso_train))
+print(root_mean_squared_error(y_train4, lasso_train)) # RMSE
+
+lasso_predict = lasso.predict(X_test_scaled4)
+print(r2_score(y_test4, lasso_predict))
+print(root_mean_squared_error(y_test4, lasso_predict)) # RMSE
+
+
+
+
+
+lasso.fit(X_train_scaled5, y_train5, sample_weight = X_train_weight5)
+lasso_train = lasso.predict(X_train_scaled5)
+print(r2_score(y_train5, lasso_train))
+print(root_mean_squared_error(y_train5, lasso_train)) # RMSE
+
+lasso_predict = lasso.predict(X_test_scaled5)
+print(r2_score(y_test5, lasso_predict))
+print(root_mean_squared_error(y_test5, lasso_predict)) # RMSE
+
+
+### decision tree
+tree = DecisionTreeRegressor(max_depth = 9, max_features = 23,
+                             min_samples_leaf = 11, criterion = 'friedman_mse')
+
+tree.fit(X_train1, y_train1, sample_weight = X_train_weight1)
+tree_train = tree.predict(X_train1)
+print(r2_score(y_train1, tree_train))
+print(root_mean_squared_error(y_train1, tree_train)) # RMSE
+
+tree_pred = tree.predict(X_test1)
+print(r2_score(y_test1, tree_pred))
+print(root_mean_squared_error(y_test1, tree_pred)) # RMSE
+
+
+
+
+tree = DecisionTreeRegressor(max_depth = 9, max_features = 22,
+                             min_samples_leaf = 21, criterion = 'friedman_mse')
+
+tree.fit(X_train2, y_train2, sample_weight = X_train_weight2)
+tree_train = tree.predict(X_train2)
+print(r2_score(y_train2, tree_train))
+print(root_mean_squared_error(y_train2, tree_train)) # RMSE
+
+tree_pred = tree.predict(X_test2)
+print(r2_score(y_test2, tree_pred))
+print(root_mean_squared_error(y_test2, tree_pred)) # RMSE
+
+
+
+tree = DecisionTreeRegressor(max_depth = 9, max_features = 22,
+                             min_samples_leaf = 21, criterion = 'friedman_mse')
+
+tree.fit(X_train3, y_train3, sample_weight = X_train_weight3)
+tree_train = tree.predict(X_train3)
+print(r2_score(y_train3, tree_train))
+print(root_mean_squared_error(y_train3, tree_train)) # RMSE
+
+tree_pred = tree.predict(X_test3)
+print(r2_score(y_test3, tree_pred))
+print(root_mean_squared_error(y_test3, tree_pred)) # RMSE
+
+
+tree = DecisionTreeRegressor(max_depth = 9, max_features = 22,
+                             min_samples_leaf = 21, criterion = 'friedman_mse')
+
+tree.fit(X_train4, y_train4, sample_weight = X_train_weight4)
+tree_train = tree.predict(X_train4)
+print(r2_score(y_train4, tree_train))
+print(root_mean_squared_error(y_train4, tree_train)) # RMSE
+
+tree_pred = tree.predict(X_test4)
+print(r2_score(y_test4, tree_pred))
+print(root_mean_squared_error(y_test4, tree_pred)) # RMSE
+
+
+
+
+tree = DecisionTreeRegressor(max_depth = 9, max_features = 23,
+                             min_samples_leaf = 11, criterion = 'friedman_mse')
+
+tree.fit(X_train5, y_train5, sample_weight = X_train_weight5)
+tree_train = tree.predict(X_train5)
+print(r2_score(y_train5, tree_train))
+print(root_mean_squared_error(y_train5, tree_train)) # RMSE
+
+tree_pred = tree.predict(X_test5)
+print(r2_score(y_test5, tree_pred))
+print(root_mean_squared_error(y_test5, tree_pred)) # RMSE
+
+
+### random forest
+
+rf = RandomForestRegressor(n_estimators=500, 
+                           min_samples_leaf=3,
+                           min_samples_split=8,
+                           max_depth=20,
+                           random_state=2)
+
+rf.fit(X_train1, y_train1, sample_weight = X_train_weight1)
+rf_train = rf.predict(X_train1)
+r2_score(y_train1, rf_train)
+mean_squared_error(y_train1, rf_train, squared = False) # RMSE
+
+rf_pred = rf.predict(X_test1)
+r2_score(y_test1, rf_pred)
+mean_squared_error(y_test1, rf_pred, squared = False) # RMSE
+
+
+
+
+from treeinterpreter import treeinterpreter as ti, utils
+selected_rows = [31, 3335]
+names = df.drop(["sci_pv1", "sci_pv2", "sci_pv3", "sci_pv4", "sci_pv5", 'weight'], axis = 1).columns
+X_train1 = pd.DataFrame(X_train1, columns = names)
+selected_df = X_train1.iloc[selected_rows,:].values
+prediction, bias, contributions = ti.predict(rf, selected_df)
+
+for i in range(len(selected_rows)):
+    print("Row", selected_rows[i])
+    print("Prediction:", prediction[i][0], 'Actual Value:', y_train1[selected_rows[i]])
+    print("Bias (trainset mean)", bias[i])
+    print("Feature contributions:")
+    for c, feature in sorted(zip(contributions[i], 
+                                 X_train1.columns), 
+                             key=lambda x: -abs(x[0])):
+        print(feature, round(c, 2))
+    print("-"*20) 
+    
+
+prediction1, bias1, contributions1 = ti.predict(rf, np.array([selected_df[0]]), joint_contribution=True)
+prediction2, bias2, contributions2 = ti.predict(rf, np.array([selected_df[1]]), joint_contribution=True)
+
+aggregated_contributions1 = utils.aggregated_contribution(contributions1)
+aggregated_contributions2 = utils.aggregated_contribution(contributions2)
+
+res = []
+for k in set(aggregated_contributions1.keys()).union(
+              set(aggregated_contributions2.keys())):
+    res.append(([X_train1.columns[index] for index in k] , 
+               aggregated_contributions1.get(k, 0) - aggregated_contributions2.get(k, 0)))   
+         
+for lst, v in (sorted(res, key=lambda x:-abs(x[1])))[:10]:
+    print (lst, v)
+
+
+
+
+import lime
+import lime.lime_tabular
+
+explainer = lime.lime_tabular.LimeTabularExplainer(X_train1.values,
+                                                   mode = 'regression',
+                                                   feature_names = X_train1.columns,
+                                                   categorical_features = [27], 
+                                                   categorical_names = ['TYPE'], 
+                                                   discretize_continuous = True)
+                                                   
+np.random.seed(42)
+exp = explainer.explain_instance(X_train1.values[31], rf.predict, num_features = 5)
+import IPython
+exp.show_in_notebook(show_all=False) #only the features used in the explanation are displayed
+exp.save_to_file(file_path='./exp.html')
+exp.as_list()
+exp.as_html()
+exp.as_pyplot_figure()
+exp.as_map()
+
+
+exp = explainer.explain_instance(X_train1.values[3335], rf.predict, num_features = 5)
+exp.show_in_notebook(show_all=False) #only the features used in the explanation are displayed
+exp.save_to_file(file_path='./exp1.html')
+exp.as_list()
+exp.as_html()
+exp.as_pyplot_figure()
+exp.as_map()
+
+
+exp = explainer.explain_instance(X_train1.values[23335], rf.predict, num_features = 5)
+exp.show_in_notebook(show_all=False) #only the features used in the explanation are displayed
+exp.save_to_file(file_path='./exp2.html')
+exp.as_list()
+exp.as_html()
+exp.as_pyplot_figure()
+exp.as_map()
+
+
+
+
+
+
+
+
+
+
+
+
+
+# =============================================================================
+# Results
+# =============================================================================
+### feature importance
+
+names = df.drop(["sci_pv_mean", 'weight'], axis = 1).columns
+
+
+import matplotlib.pyplot as plt
+
+lasso_coefs = pd.DataFrame(
+   lasso.coef_,
+   columns=['Coefficients'], index=names)
+
+lasso_coefs.sort_values(by = ['Coefficients'],
+                        ascending = True,
+                        inplace = True)
+lasso_coefs.plot(kind='barh', figsize=(9, 7))
+plt.title('Lasso model')
+plt.axvline(x=0, color='.5')
+plt.subplots_adjust(left=.3)
+
+tree_coefs = pd.DataFrame(
+   tree.feature_importances_,
+   columns=['Coefficients'], index=names)
+tree_coefs.sort_values(by = ['Coefficients'],
+                        ascending = True,
+                        inplace = True)
+tree_coefs.plot(kind='barh', figsize=(9, 7))
+plt.title('Decision tree')
+plt.axvline(x=0, color='.5')
+plt.subplots_adjust(left=.3)
+
+rf.fit(X_train1, y_train1, sample_weight = X_train_weight1)
+rf_coefs1 = pd.DataFrame(
+   rf.feature_importances_,
+   columns=['Coefficients'], index=names)
+rf_coefs1.sort_values(by = ['Coefficients'],
+                        ascending = True,
+                        inplace = True)
+rf_coefs1.plot(kind='barh', figsize=(9, 7))
+plt.title('Random Forest')
+plt.axvline(x=0, color='.5')
+plt.subplots_adjust(left=.3)
+
+rf.fit(X_train2, y_train2, sample_weight = X_train_weight2)
+rf_coefs2 = pd.DataFrame(
+   rf.feature_importances_,
+   columns=['Coefficients'], index=names)
+rf_coefs2.sort_values(by = ['Coefficients'],
+                        ascending = True,
+                        inplace = True)
+rf_coefs2.plot(kind='barh', figsize=(9, 7))
+plt.title('Random Forest')
+plt.axvline(x=0, color='.5')
+plt.subplots_adjust(left=.3)
+
+
+rf.fit(X_train3, y_train3, sample_weight = X_train_weight3)
+rf_coefs3 = pd.DataFrame(
+   rf.feature_importances_,
+   columns=['Coefficients'], index=names)
+rf_coefs3.sort_values(by = ['Coefficients'],
+                        ascending = True,
+                        inplace = True)
+rf_coefs3.plot(kind='barh', figsize=(9, 7))
+plt.title('Random Forest')
+plt.axvline(x=0, color='.5')
+plt.subplots_adjust(left=.3)
+
+
+rf.fit(X_train4, y_train4, sample_weight = X_train_weight4)
+rf_coefs4 = pd.DataFrame(
+   rf.feature_importances_,
+   columns=['Coefficients'], index=names)
+rf_coefs4.sort_values(by = ['Coefficients'],
+                        ascending = True,
+                        inplace = True)
+rf_coefs4.plot(kind='barh', figsize=(9, 7))
+plt.title('Random Forest')
+plt.axvline(x=0, color='.5')
+plt.subplots_adjust(left=.3)
+
+
+rf.fit(X_train5, y_train5, sample_weight = X_train_weight5)
+rf_coefs5 = pd.DataFrame(
+   rf.feature_importances_,
+   columns=['Coefficients'], index=names)
+rf_coefs5.sort_values(by = ['Coefficients'],
+                        ascending = True,
+                        inplace = True)
+rf_coefs5.plot(kind='barh', figsize=(9, 7))
+plt.title('Random Forest')
+plt.axvline(x=0, color='.5')
+plt.subplots_adjust(left=.3)
+
+
+import pandas as pd
+import matplotlib.pyplot as plt
+
+
+all_coefs = pd.concat([rf_coefs1, rf_coefs2, rf_coefs3, rf_coefs4, rf_coefs5])
+
+average_coefs = all_coefs.groupby(all_coefs.index).mean()
+
+
+average_coefs_sorted = average_coefs.sort_values(by='Coefficients', ascending=True)
+
+average_coefs_sorted.plot(kind='barh', figsize=(9, 7))
+plt.title('Average Random Forest Feature Importances')
+plt.axvline(x=0, color='.5')
+plt.subplots_adjust(left=.3)
+plt.show()
+
+
+
+import shap
+plt.rcParams['figure.figsize'] = [10, 7]
+e = shap.KernelExplainer(nn.predict, X_train_scaled)
+shap_values = e.shap_values(X_test_scaled)
+shap.summary_plot(shap_values, X_test, feature_names=names)
+
+model.fit(X_train_scaled, y_train, sample_weight = X_train_weight, verbose=1,
+          batch_size = 30, epochs = 100)
+e = shap.KernelExplainer(model, X_train_scaled)
+shap_values = e.shap_values(X_test_scaled)
+
+
+
+
+import fasttreeshap
+import shap
+explainer = fasttreeshap.TreeExplainer(rf, algorithm = 'auto', n_jobs = -1)
+shap_values = explainer(X_test5).values
+ 
+
+shap.summary_plot(shap_values, X_test1, feature_names = names)
+
+shap.dependence_plot(27, shap_values, X_test5, feature_names=names)
+shap.dependence_plot('like', shap_values, X_test5, feature_names=names)
+shap.dependence_plot('confident', shap_values, X_test5, feature_names=names)
+shap.dependence_plot('clarity', shap_values, X_test5, feature_names=names)
+shap.dependence_plot('country', shap_values, X_test1, feature_names=names)
+shap.dependence_plot('instru_time_fromteacher', shap_values, X_test1, feature_names=names)
+shap.dependence_plot('experiments_freq', shap_values, X_test1, feature_names=names)
+shap.dependence_plot('emphasis_investigation', shap_values, X_test1, feature_names=names)
+shap.dependence_plot('homework_freq', shap_values, X_test1, feature_names=names)
+shap.dependence_plot('ses', shap_values, X_test1, feature_names=names)
+shap.dependence_plot('more_time_assist', shap_values, X_test1, feature_names=names)
+
+shap.dependence_plot('like', shap_values, X_test5, feature_names=names, interaction_index='type_dummies')
+shap.dependence_plot('clarity', shap_values, X_test5, feature_names=names, interaction_index='type_dummies')
+shap.dependence_plot('confident', shap_values, X_test5, feature_names=names, interaction_index='type_dummies')
+shap.dependence_plot('emphasis_investigation', shap_values, X_test5, feature_names=names, interaction_index='type_dummies')
+
+
+import dill
+#dill.dump_session("TIMSS.pkl")
+import joblib
+
+with open('shap_values.pkl', 'rb') as file:
+    shap_values1 = joblib.load(file)
+
+shap.dependence_plot('like', shap_values1, X_test1, feature_names=names, interaction_index='type_dummies')
+shap.dependence_plot('clarity', shap_values1, X_test1, feature_names=names, interaction_index='type_dummies')
+shap.dependence_plot('confident', shap_values1, X_test1, feature_names=names, interaction_index='type_dummies')
+shap.dependence_plot('emphasis_investigation', shap_values1, X_test1, feature_names=names, interaction_index='type_dummies')
+
+
+with open('shap_values2.pkl', 'rb') as file:
+    shap_values2 = joblib.load(file)
+
+
+shap.dependence_plot('like', shap_values2, X_test2, feature_names=names, interaction_index='type_dummies')
+shap.dependence_plot('clarity', shap_values2, X_test2, feature_names=names, interaction_index='type_dummies')
+shap.dependence_plot('confident', shap_values2, X_test2, feature_names=names, interaction_index='type_dummies')
+
+with open('shap_values3.pkl', 'rb') as file:
+    shap_values3 = joblib.load(file)
+shap.dependence_plot('like', shap_values3, X_test3, feature_names=names, interaction_index='type_dummies')
+shap.dependence_plot('clarity', shap_values3, X_test3, feature_names=names, interaction_index='type_dummies')
+shap.dependence_plot('confident', shap_values3, X_test3, feature_names=names, interaction_index='type_dummies')
+
+with open('shap_values4.pkl', 'rb') as file:
+    shap_values4 = joblib.load(file)
+shap.dependence_plot('like', shap_values4, X_test4, feature_names=names, interaction_index='type_dummies')
+shap.dependence_plot('clarity', shap_values4, X_test4, feature_names=names, interaction_index='type_dummies')
+shap.dependence_plot('confident', shap_values4, X_test4, feature_names=names, interaction_index='type_dummies')
+
+
+with open('shap_values5.pkl', 'rb') as file:
+    shap_values5 = joblib.load(file)
+shap.dependence_plot('like', shap_values5, X_test5, feature_names=names, interaction_index='type_dummies')
+shap.dependence_plot('clarity', shap_values5, X_test5, feature_names=names, interaction_index='type_dummies')
+shap.dependence_plot('confident', shap_values5, X_test5, feature_names=names, interaction_index='type_dummies')
